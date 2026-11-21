@@ -1,0 +1,85 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: mini-noc
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  # O próprio Prometheus: prova que a coleta está viva.
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Métricas do host (CPU, memória, disco, rede).
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]
+
+  # Probe HTTP "raso": só o nginx. É o que define WebDown.
+  - job_name: blackbox-http
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets: ["http://app.local/healthz"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
+
+  # Probe HTTP "profundo": nginx -> API -> Postgres.
+  - job_name: blackbox-api
+    metrics_path: /probe
+    params:
+      module: [http_api]
+    static_configs:
+      - targets: ["http://app.local/api/status"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
+
+  # Probe de DNS: pergunta ao CoreDNS pelo nome app.local.
+  # O alvo é o IP do resolvedor, não o nome (senão o teste se auto-resolve).
+  - job_name: blackbox-dns
+    metrics_path: /probe
+    params:
+      module: [dns_check]
+    static_configs:
+      - targets: ["172.28.10.53"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
+
+  # Probe TCP na porta do banco. Não precisa de credencial: só o handshake.
+  - job_name: blackbox-tcp
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets: ["172.28.20.20:5432"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115

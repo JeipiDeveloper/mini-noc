@@ -1,0 +1,8 @@
+# Zona interna do laboratório.
+# O CoreDNS responde por estes nomes e encaminha o resto para a internet.
+172.28.10.10   app.local
+172.28.20.20   db.local
+172.28.10.42   grafana.local
+172.28.10.40   prometheus.local
+172.28.10.41   alertmanager.local
+172.28.10.50   tickets.local

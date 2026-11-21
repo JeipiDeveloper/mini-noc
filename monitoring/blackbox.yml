@@ -1,0 +1,35 @@
+modules:
+  # 200 = saudável. Qualquer outra coisa (ou timeout) = falha.
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      preferred_ip_protocol: ip4
+      valid_status_codes: [200]
+      follow_redirects: false
+
+  # Mesma coisa, mas para o endpoint que depende do banco.
+  http_api:
+    prober: http
+    timeout: 5s
+    http:
+      preferred_ip_protocol: ip4
+      valid_status_codes: [200]
+      follow_redirects: false
+
+  # Consulta A para app.local. NXDOMAIN ou timeout = falha.
+  dns_check:
+    prober: dns
+    timeout: 5s
+    dns:
+      preferred_ip_protocol: ip4
+      query_name: app.local
+      query_type: A
+      valid_rcodes: [NOERROR]
+
+  # Handshake TCP: prova que a porta está aceitando conexão.
+  tcp_connect:
+    prober: tcp
+    timeout: 3s
+    tcp:
+      preferred_ip_protocol: ip4

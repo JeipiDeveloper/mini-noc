@@ -1,0 +1,11 @@
+.:53 {
+    hosts /etc/coredns/hosts {
+        fallthrough
+    }
+    forward . 1.1.1.1 8.8.8.8
+    cache 30
+    log
+    errors
+    health :8053
+    ready :8181
+}

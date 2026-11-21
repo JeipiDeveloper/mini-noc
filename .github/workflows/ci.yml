@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Valida YAMLs
+        run: |
+          python3 - <<'PY'
+          import glob, sys, yaml
+          files = glob.glob("**/*.yml", recursive=True) + glob.glob("**/*.yaml", recursive=True)
+          bad = []
+          for path in files:
+              try:
+                  with open(path, encoding="utf-8") as fh:
+                      yaml.safe_load(fh)
+              except Exception as exc:
+                  bad.append(f"{path}: {exc}")
+          if bad:
+              print("\n".join(bad))
+              sys.exit(1)
+          print(f"{len(files)} arquivos YAML válidos")
+          PY
+
+      - name: Valida JSON (dashboard Grafana)
+        run: |
+          python3 -c "import json; json.load(open('monitoring/grafana/dashboards/mini-noc.json'))"
+          echo "dashboard válido"
+
+      - name: Valida Python
+        run: |
+          python3 -m py_compile bot/triage_bot.py api/app.py
+          echo "python válido"
+
+      - name: Valida docker-compose
+        run: docker compose config -q && echo "compose válido"
+
+      - name: ShellCheck nos scripts
+        run: |
+          shellcheck chaos/*.sh scripts/*.sh

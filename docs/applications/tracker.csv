@@ -1,0 +1,3 @@
+date,company,role,location,remote,source,url,status,stage,contact,follow_up_date,notes
+2026-11-20,EXAMPLE MSP,NOC Technician Intern,Remote,true,LinkedIn,https://example.com/job/1,applied,screening,,2026-11-27,"Tailored first line to monitoring/runbooks"
+2026-11-21,EXAMPLE Cloud,Cloud Support Associate,Remote,true,Company site,https://example.com/job/2,to_apply,,,,"Needs cover letter; deadline 2026-11-30"

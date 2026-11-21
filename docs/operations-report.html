@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mini-NOC — Operations Report · November 2026</title>
+<style>
+  @page { size: A4; margin: 14mm 15mm; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; color: #16202b; background: #fff;
+    font-family: "DejaVu Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 10.2pt; line-height: 1.45;
+  }
+  h1 { font-size: 16.5pt; margin: 0 0 2mm; letter-spacing: -0.02em; white-space: nowrap; }
+  h2 { font-size: 9pt; text-transform: uppercase; letter-spacing: .09em; color: #5b6b7c; margin: 7mm 0 2.5mm; }
+  .sub { color: #5b6b7c; font-size: 9.5pt; margin: 0; }
+  header { border-bottom: 2px solid #16202b; padding-bottom: 4mm; display: flex; justify-content: space-between; align-items: flex-end; gap: 10mm; }
+  .meta { text-align: right; font-size: 8.2pt; color: #5b6b7c; line-height: 1.6; max-width: 58mm; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin-top: 5mm; }
+  .kpi { border: 1px solid #d7dee6; border-radius: 2.5mm; padding: 3.5mm; }
+  .kpi .label { font-size: 7.4pt; text-transform: uppercase; letter-spacing: .08em; color: #5b6b7c; }
+  .kpi .value { font-size: 19pt; font-weight: 700; letter-spacing: -0.03em; margin: 1mm 0 0; }
+  .kpi .note { font-size: 8pt; color: #5b6b7c; }
+  .ok { color: #127a4b; }
+  table { width: 100%; border-collapse: collapse; margin-top: 1mm; }
+  th { text-align: left; font-size: 7.6pt; text-transform: uppercase; letter-spacing: .06em; color: #5b6b7c; border-bottom: 1px solid #c9d2dc; padding: 2mm 2mm; }
+  td { padding: 2.1mm 2mm; border-bottom: 1px solid #e6ebf0; font-size: 9.3pt; }
+  td.mono { font-family: "DejaVu Sans Mono", ui-monospace, monospace; font-size: 8.4pt; }
+  .sev { display: inline-block; padding: .4mm 2mm; border-radius: 9mm; font-size: 7.4pt; font-weight: 700; }
+  .s1 { background: #fde8e6; color: #a32016; }
+  .s2 { background: #fdf3d6; color: #7a5a00; }
+  .cols { display: grid; grid-template-columns: 1.25fr 1fr; gap: 8mm; }
+  ul { margin: 0; padding-left: 4.5mm; }
+  li { margin-bottom: 1.4mm; }
+  .risk { border-left: 2.5px solid #c9d2dc; padding-left: 3mm; }
+  footer { margin-top: 7mm; border-top: 1px solid #d7dee6; padding-top: 2.5mm; display: flex; justify-content: space-between; font-size: 8pt; color: #5b6b7c; }
+  code { font-family: "DejaVu Sans Mono", monospace; font-size: 8.2pt; background: #f1f4f7; padding: .3mm 1.2mm; border-radius: 1mm; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Mini-NOC — Operations Report</h1>
+    <p class="sub">Network operations lab · November 2026 · single-host environment</p>
+  </div>
+  <div class="meta">
+    Window: 2026-11-19 (game day)<br>
+    Author: <strong>Jeipi</strong><br>
+    github.com/JeipiDeveloper/mini-noc
+  </div>
+</header>
+
+<div class="kpis">
+  <div class="kpi"><div class="label">Services</div><div class="value">11</div><div class="note">2 isolated subnets</div></div>
+  <div class="kpi"><div class="label">Paging alerts</div><div class="value">6</div><div class="note">100% with runbooks</div></div>
+  <div class="kpi"><div class="label">Time to ticket</div><div class="value">90–153 s</div><div class="note">4 injected faults</div></div>
+  <div class="kpi"><div class="label">Smoke checks</div><div class="value ok">8 / 8</div><div class="note">end-to-end</div></div>
+</div>
+
+<h2>Incidents this window</h2>
+<table>
+  <thead>
+    <tr><th>Scenario</th><th>Alert</th><th>Sev.</th><th>Injected (UTC)</th><th>Ticket opened</th><th>Time to ticket</th><th>Detection path</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Edge (nginx) stopped</td><td class="mono">WebDown</td><td><span class="sev s1">SEV1</span></td><td class="mono">18:20:50</td><td class="mono">18:22:20</td><td><strong>90 s</strong></td><td>HTTP probe</td></tr>
+    <tr><td>Internal DNS stopped</td><td class="mono">DNSFailure</td><td><span class="sev s1">SEV1</span></td><td class="mono">18:24:59</td><td class="mono">18:26:35</td><td><strong>96 s</strong></td><td>DNS probe</td></tr>
+    <tr><td>Postgres stopped</td><td class="mono">DBDown</td><td><span class="sev s1">SEV1</span></td><td class="mono">18:27:39</td><td class="mono">18:29:20</td><td><strong>101 s</strong></td><td>TCP probe</td></tr>
+    <tr><td>+900 ms latency</td><td class="mono">HighLatency</td><td><span class="sev s2">SEV2</span></td><td class="mono">18:30:34</td><td class="mono">18:33:07</td><td><strong>153 s</strong></td><td>HTTP duration</td></tr>
+  </tbody>
+</table>
+
+<div class="cols" style="margin-top:6mm">
+  <div>
+    <h2>What changed as a result</h2>
+    <ul>
+      <li>Reduced Alertmanager <code>group_interval</code> from 2 min to 30 s after the first resolved notification arrived late.</li>
+      <li>Added inhibition so a DNS failure suppresses <code>WebDown</code> and <code>ApiDegraded</code>; one cause, one page.</li>
+      <li>Documented the alert-window trade-off in ADR 004, with the measured detection times.</li>
+      <li>Added a client-perspective probe and a disk-capacity alert to the backlog.</li>
+    </ul>
+  </div>
+  <div>
+    <h2>Open risks</h2>
+    <ul>
+      <li class="risk">Single host: no HA, no failover. A host failure is a total outage.</li>
+      <li class="risk">Single resolver: CoreDNS is a shared point of failure.</li>
+      <li class="risk">No database backup job yet; volume loss means data loss.</li>
+      <li class="risk">No dynamic routing (BGP/OSPF) in scope yet.</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Evidence and reproducibility</h2>
+<p style="margin:0">
+  Every number above is traceable to raw Alertmanager webhook payloads in
+  <code>docs/evidence/tickets-2026-11-19.jsonl</code> (SHA-256
+  <code>28c5d0de…811f25</code>). The environment starts with <code>make up</code> and is verified by
+  <code>make test</code> (8 checks, including DNS and network isolation). Postmortems and runbooks are in the repository.
+</p>
+
+<footer>
+  <span>Mini-NOC · blameless game day · numbers measured, not estimated</span>
+  <span>Page 1 of 1</span>
+</footer>
+
+</body>
+</html>

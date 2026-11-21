@@ -1,0 +1,36 @@
+global:
+  resolve_timeout: 5m
+
+# Agrupar por cluster+severidade reduz ruído: uma causa raiz (ex.: DNS fora)
+# costuma gerar vários alertas ao mesmo tempo. O bot recebe UM webhook com
+# todos e abre UM ticket, listando cada alerta.
+route:
+  receiver: triage-bot
+  group_by: [cluster, severity]
+  group_wait: 15s
+  group_interval: 30s
+  repeat_interval: 4h
+
+receivers:
+  - name: triage-bot
+    webhook_configs:
+      - url: http://triage-bot:8080/alert
+        send_resolved: true
+        max_alerts: 0
+
+inhibit_rules:
+  # Se o DNS caiu, não faz sentido paginar por "site fora" e "API degradada":
+  # os dois são consequência. Inibe os sintomas e deixa a causa raiz visível.
+  - source_matchers: ['alertname="DNSFailure"']
+    target_matchers: ['alertname=~"WebDown|ApiDegraded"']
+    equal: [cluster]
+
+  # Se a borda (nginx) está fora, a API está inacessível por consequência.
+  - source_matchers: ['alertname="WebDown"']
+    target_matchers: ['alertname="ApiDegraded"']
+    equal: [cluster]
+
+  # Se o banco está fora, a API degradada é sintoma, não causa.
+  - source_matchers: ['alertname="DBDown"']
+    target_matchers: ['alertname="ApiDegraded"']
+    equal: [cluster]

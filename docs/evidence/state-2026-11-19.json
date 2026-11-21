@@ -1,0 +1,74 @@
+{
+  "{}:{cluster=\"mini-noc\", severity=\"critical\"}": {
+    "status": "resolved",
+    "ticket": {
+      "id": "TKT-20261119-182920-527F",
+      "group_key": "{}:{cluster=\"mini-noc\", severity=\"critical\"}",
+      "severity": "critical",
+      "severity_label": "SEV1",
+      "title": "DBDown",
+      "status": "resolved",
+      "opened_at": "2026-11-19T18:29:20+00:00",
+      "resolved_at": "2026-11-19T18:29:50+00:00",
+      "alerts": [
+        {
+          "status": "firing",
+          "labels": {
+            "alertname": "DBDown",
+            "cluster": "mini-noc",
+            "instance": "172.28.20.20:5432",
+            "job": "blackbox-tcp",
+            "service": "db",
+            "severity": "critical"
+          },
+          "annotations": {
+            "description": "O handshake TCP com o Postgres falhou. Runbook: runbooks/db-down.md",
+            "runbook": "runbooks/db-down.md",
+            "summary": "Banco de dados inacess\u00edvel na porta 5432"
+          },
+          "startsAt": "2026-11-19T18:28:50.059Z",
+          "endsAt": "0001-01-01T00:00:00Z",
+          "generatorURL": "http://26dc80e52426:9090/graph?g0.expr=probe_success%7Bjob%3D%22blackbox-tcp%22%7D+%3D%3D+0&g0.tab=1",
+          "fingerprint": "f5e36fe9cd385c71"
+        }
+      ]
+    },
+    "github_issue": null
+  },
+  "{}:{cluster=\"mini-noc\", severity=\"warning\"}": {
+    "status": "resolved",
+    "ticket": {
+      "id": "TKT-20261119-183307-D396",
+      "group_key": "{}:{cluster=\"mini-noc\", severity=\"warning\"}",
+      "severity": "warning",
+      "severity_label": "SEV2",
+      "title": "HighLatency",
+      "status": "resolved",
+      "opened_at": "2026-11-19T18:33:07+00:00",
+      "resolved_at": "2026-11-19T18:34:07+00:00",
+      "alerts": [
+        {
+          "status": "firing",
+          "labels": {
+            "alertname": "HighLatency",
+            "cluster": "mini-noc",
+            "instance": "http://app.local/healthz",
+            "job": "blackbox-http",
+            "service": "web",
+            "severity": "warning"
+          },
+          "annotations": {
+            "description": "O servi\u00e7o responde, mas devagar. Runbook: runbooks/high-latency.md",
+            "runbook": "runbooks/high-latency.md",
+            "summary": "Lat\u00eancia do site acima de 800 ms"
+          },
+          "startsAt": "2026-11-19T18:32:52.112Z",
+          "endsAt": "0001-01-01T00:00:00Z",
+          "generatorURL": "http://26dc80e52426:9090/graph?g0.expr=probe_duration_seconds%7Bjob%3D%22blackbox-http%22%7D+%3E+0.8&g0.tab=1",
+          "fingerprint": "6c7478f70ca1a6e8"
+        }
+      ]
+    },
+    "github_issue": null
+  }
+}

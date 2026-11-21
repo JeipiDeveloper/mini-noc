@@ -1,0 +1,247 @@
+name: mini-noc
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # ---------------------------------------------------------------------------
+  # Plano de dados: DNS interno
+  # ---------------------------------------------------------------------------
+  dns:
+    image: coredns/coredns:1.11.3
+    container_name: mini-noc-dns
+    command: -conf /etc/coredns/Corefile
+    volumes:
+      - ./dns/Corefile:/etc/coredns/Corefile:ro
+      - ./dns/hosts:/etc/coredns/hosts:ro
+    ports:
+      # 15353 no host para não colidir com o mDNS/Avahi (5353/udp).
+      - "15353:53/udp"
+      - "15353:53/tcp"
+    networks:
+      frontend:
+        ipv4_address: 172.28.10.53
+    restart: unless-stopped
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # Aplicação: nginx (entrada) + API (regra de negócio) + Postgres (dados)
+  # ---------------------------------------------------------------------------
+  web:
+    build: ./web
+    container_name: mini-noc-web
+    depends_on:
+      - api
+    networks:
+      frontend:
+        ipv4_address: 172.28.10.10
+      backend:
+        ipv4_address: 172.28.20.10
+    ports:
+      - "8080:80"
+    cap_add:
+      - NET_ADMIN          # necessário para o cenário de caos de latência (tc netem)
+    restart: unless-stopped
+    logging: *default-logging
+
+  api:
+    build: ./api
+    container_name: mini-noc-api
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      backend:
+        ipv4_address: 172.28.20.30
+    restart: unless-stopped
+    logging: *default-logging
+
+  db:
+    image: postgres:16-alpine
+    container_name: mini-noc-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      backend:
+        ipv4_address: 172.28.20.20
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+    logging: *default-logging
+
+  # Cliente sintético: gera tráfego e prova que o DNS interno funciona.
+  client:
+    image: curlimages/curl:8.10.1
+    container_name: mini-noc-client
+    dns:
+      - 172.28.10.53
+    command: >
+      sh -c 'while true; do
+        code=$$(curl -s -m 5 -o /dev/null -w "%{http_code}" http://app.local/ || echo 000);
+        echo "$$(date -Is) GET http://app.local/ -> $$code";
+        sleep 5;
+      done'
+    depends_on:
+      - web
+      - dns
+    networks:
+      frontend:
+        ipv4_address: 172.28.10.20
+    restart: unless-stopped
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # Observabilidade: coleta, sondagem ativa, alerta e visualização
+  # ---------------------------------------------------------------------------
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: mini-noc-node-exporter
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/rootfs
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|run|var/lib/docker)($$|/)
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      frontend:
+        ipv4_address: 172.28.10.60
+    restart: unless-stopped
+    logging: *default-logging
+
+  blackbox:
+    image: prom/blackbox-exporter:v0.25.0
+    container_name: mini-noc-blackbox
+    command: --config.file=/etc/blackbox/blackbox.yml
+    volumes:
+      - ./monitoring/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    dns:
+      - 172.28.10.53
+    networks:
+      frontend:
+        ipv4_address: 172.28.10.30
+      backend:
+        ipv4_address: 172.28.20.31
+    restart: unless-stopped
+    logging: *default-logging
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: mini-noc-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prom-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      frontend:
+        ipv4_address: 172.28.10.40
+    depends_on:
+      - blackbox
+      - alertmanager
+    restart: unless-stopped
+    logging: *default-logging
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: mini-noc-alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - am-data:/alertmanager
+    ports:
+      - "9093:9093"
+    networks:
+      frontend:
+        ipv4_address: 172.28.10.41
+    restart: unless-stopped
+    logging: *default-logging
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: mini-noc-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      frontend:
+        ipv4_address: 172.28.10.42
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # Operação: alerta -> ticket
+  # ---------------------------------------------------------------------------
+  triage-bot:
+    build: ./bot
+    container_name: mini-noc-bot
+    environment:
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_REPO: ${GITHUB_REPO:-}
+      DATA_DIR: /data
+      RUNBOOK_DIR: /runbooks
+    volumes:
+      - ./bot/data:/data
+      - ./runbooks:/runbooks:ro
+    ports:
+      - "8090:8080"
+    networks:
+      frontend:
+        ipv4_address: 172.28.10.50
+    restart: unless-stopped
+    logging: *default-logging
+
+networks:
+  # "WAN/LAN de usuários": só serviços de entrada e observabilidade
+  frontend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.10.0/24
+  # "Zona de dados": banco e API, sem acesso direto do cliente
+  backend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.20.0/24
+
+volumes:
+  prom-data:
+  am-data:
+  grafana-data:
+  db-data:

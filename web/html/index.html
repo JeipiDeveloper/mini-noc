@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mini-NOC · status do serviço</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --panel: #111823;
+      --line: #1e2a3a;
+      --text: #e6edf3;
+      --muted: #8b98a9;
+      --ok: #2ecc71;
+      --bad: #e74c3c;
+      --warn: #f1c40f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; background: radial-gradient(1200px 600px at 20% -10%, #14263a 0%, var(--bg) 55%);
+      color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      display: grid; place-items: center; padding: 32px;
+    }
+    main { width: 100%; max-width: 760px; }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 12px currentColor; }
+    h1 { font-size: 26px; margin: 0; letter-spacing: -0.02em; }
+    .sub { color: var(--muted); margin: 0 0 28px 24px; font-size: 14px; }
+    .card { background: linear-gradient(180deg, #121b27 0%, #0f1620 100%); border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+    .card h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+    #state { font-size: 30px; font-weight: 650; margin: 0 0 6px; letter-spacing: -0.02em; }
+    #detail { margin: 0; color: var(--muted); font-size: 13px; white-space: pre-wrap; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-top: 14px; }
+    .grid div { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+    .grid span { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
+    .grid strong { font-size: 14px; font-weight: 600; }
+    footer { margin-top: 18px; color: var(--muted); font-size: 12px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    a { color: #6cb6ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <span class="dot" id="dot"></span>
+      <h1>Mini-NOC</h1>
+    </header>
+    <p class="sub">Serviço de demonstração · laboratório de operações</p>
+
+    <section class="card">
+      <h2>Estado do serviço</h2>
+      <p id="state">verificando…</p>
+      <pre id="detail"></pre>
+    </section>
+
+    <section class="grid">
+      <div><span>Nome interno</span><strong>app.local</strong></div>
+      <div><span>Monitoramento</span><strong>Prometheus + Grafana</strong></div>
+      <div><span>Alertas</span><strong>Alertmanager → ticket</strong></div>
+    </section>
+
+    <footer>
+      <span>Atualiza a cada 5 segundos</span>
+      <span><a href="/api/status">/api/status</a> · <a href="/healthz">/healthz</a></span>
+    </footer>
+  </main>
+
+  <script>
+    const dot = document.getElementById('dot');
+    const state = document.getElementById('state');
+    const detail = document.getElementById('detail');
+
+    async function refresh() {
+      try {
+        const res = await fetch('/api/status', { cache: 'no-store' });
+        const body = await res.json();
+        const up = res.ok && body.db === 'up';
+        dot.style.background = up ? 'var(--ok)' : 'var(--bad)';
+        state.textContent = up ? 'Operacional' : 'Degradado';
+        state.style.color = up ? 'var(--ok)' : 'var(--bad)';
+        detail.textContent = JSON.stringify(body, null, 2);
+      } catch (err) {
+        dot.style.background = 'var(--bad)';
+        state.textContent = 'Sem resposta';
+        state.style.color = 'var(--bad)';
+        detail.textContent = String(err);
+      }
+    }
+
+    refresh();
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>
